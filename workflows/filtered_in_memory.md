@@ -88,39 +88,16 @@ This will genearate label file with 10000 data points with 50 distinct labels, r
 
 Label count for each unique label in the generated label file can be printed with help of following command
 ```bash
-  build/apps/utils/stats_label_data.exe --labels_file ./rand_labels_50_10K.txt --universal_label 0
+  build/apps/utils/stats_label_data --labels_file ./rand_labels_50_10K.txt --universal_label 0
 ```
 	
 Note that neither approach is designed for use with random synthetic labels, which will lead to unpredictable accuracy at search time.
 
 Now build and search the index and measure the recall using ground truth computed using bruteforce. We search for results with the filter 35.
 ```bash
-build/apps/utils/compute_groundtruth --data_type float --dist_fn l2 --base_file siftsmall/siftsmall_base.bin --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --K 100 --label_file ./rand_labels_50_10K.txt --filter_label 35 --universal_label 0
+build/apps/utils/compute_groundtruth_for_filters --data_type float --dist_fn l2 --base_file siftsmall/siftsmall_base.bin --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --K 100 --label_file ./rand_labels_50_10K.txt --filter_label 35 --universal_label 0
 build/apps/build_memory_index  --data_type float --dist_fn l2 --data_path siftsmall/siftsmall_base.bin --index_path_prefix siftsmall/siftsmall_R32_L50_filtered_index -R 32 --FilteredLbuild 50 --alpha 1.2 --label_file ./rand_labels_50_10K.txt --universal_label 0
 build/apps/build_stitched_index --data_type float --data_path siftsmall/siftsmall_base.bin --index_path_prefix siftsmall/siftsmall_R20_L40_SR32_stitched_index -R 20 -L 40 --stitched_R 32 --alpha 1.2 --label_file ./rand_labels_50_10K.txt --universal_label 0
-build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix data/sift/siftsmall_R20_L40_SR32_filtered_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/filtered_search_results
-build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix data/sift/siftsmall_R20_L40_SR32_stitched_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/stitched_search_results
+build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix siftsmall/siftsmall_R32_L50_filtered_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/filtered_search_results
+build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix siftsmall/siftsmall_R20_L40_SR32_stitched_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/stitched_search_results
 ```
-
- The output of both searches is listed below. The throughput (Queries/sec) as well as mean and 99.9 latency in microseconds for each `L` parameter provided. (Measured on a physical machine with a Intel(R) Xeon(R) W-2145 CPU and 64 GB RAM)
- ```
- Stitched Index
-  Ls         QPS     Avg dist cmps  Mean Latency (mus)   99.9 Latency   Recall@10
-=================================================================================
-  10    31324.39             37.33              116.79         311.90       17.80
-  20    91357.57             44.36              193.06        1042.30       17.90
-  30    69314.48             49.89              258.09        1398.00       18.20
-  40    61421.29             60.52              289.08        1515.00       18.60
-  50    54203.48             70.27              294.26         685.10       19.40
- 100    52904.45             79.00              336.26        1018.80       19.50
-
-Filtered Index
- Ls         QPS     Avg dist cmps  Mean Latency (mus)   99.9 Latency   Recall@10
-=================================================================================
-  10    69671.84             21.48               45.25         146.20       11.60
-  20   168577.20             38.94              100.54         547.90       18.20
-  30   127129.41             52.95              126.83         768.40       19.70
-  40   106349.04             62.38              167.23         899.10       20.90
-  50    89952.33             70.95              189.12        1070.80       22.10
- 100    56899.00            112.26              304.67         636.60       23.80
- ```
