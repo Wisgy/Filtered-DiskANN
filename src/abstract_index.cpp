@@ -34,12 +34,12 @@ size_t AbstractIndex::search_with_tags(const data_type *query, const uint64_t K,
 }
 
 template <typename IndexType>
-std::pair<uint32_t, uint32_t> AbstractIndex::search_with_filters(const DataType &query, const std::string &raw_label,
+std::pair<uint32_t, uint32_t> AbstractIndex::search_with_filters(const DataType &query, const std::string &raw_logic_expr,
                                                                  const size_t K, const uint32_t L, IndexType *indices,
                                                                  float *distances)
 {
     auto any_indices = std::any(indices);
-    return _search_with_filters(query, raw_label, K, L, any_indices, distances);
+    return _search_with_filters(query, raw_logic_expr, K, L, any_indices, distances);
 }
 
 template <typename data_type>

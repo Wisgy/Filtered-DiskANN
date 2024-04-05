@@ -114,6 +114,8 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
     // Get converted integer label from string to int map (_label_map)
     DISKANN_DLLEXPORT LabelT get_converted_label(const std::string &raw_label);
 
+    DISKANN_DLLEXPORT std::vector<LabelT> parse_label_logic_expression(const std::string &raw_label);
+
     // Set starting point of an index before inserting any points incrementally.
     // The data count should be equal to _num_frozen_pts * _aligned_dim.
     DISKANN_DLLEXPORT void set_start_points(const T *data, size_t data_count);
@@ -141,7 +143,8 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
 
     // Filter support search
     template <typename IndexType>
-    DISKANN_DLLEXPORT std::pair<uint32_t, uint32_t> search_with_filters(const T *query, const LabelT &filter_label,
+    DISKANN_DLLEXPORT std::pair<uint32_t, uint32_t> search_with_filters(const T *query,
+                                                                        std::vector<LabelT> &filter_labels,
                                                                         const size_t K, const uint32_t L,
                                                                         IndexType *indices, float *distances);
 

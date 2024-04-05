@@ -75,7 +75,7 @@ class AbstractIndex
     // Filter support search
     // IndexType is either uint32_t or uint64_t
     template <typename IndexType>
-    std::pair<uint32_t, uint32_t> search_with_filters(const DataType &query, const std::string &raw_label,
+    std::pair<uint32_t, uint32_t> search_with_filters(const DataType &query, const std::string &raw_logic_expr,
                                                       const size_t K, const uint32_t L, IndexType *indices,
                                                       float *distances);
 
