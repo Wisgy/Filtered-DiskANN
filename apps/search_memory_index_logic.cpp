@@ -279,7 +279,7 @@ int search_memory_index(diskann::Metric &metric, const std::string &index_path, 
 
 int main(int argc, char **argv)
 {
-    std::string data_type, dist_fn, index_path_prefix, result_path, query_file, gt_file, filter_label, label_type,
+    std::string data_type, dist_fn, index_path_prefix, result_path, query_file, gt_file, logic_expr, label_type,
         query_filters_file;
     uint32_t num_threads, K;
     std::vector<uint32_t> Lvec;
@@ -312,8 +312,8 @@ int main(int argc, char **argv)
 
         // Optional parameters
         po::options_description optional_configs("Optional");
-        optional_configs.add_options()("filter_label",
-                                       po::value<std::string>(&filter_label)->default_value(std::string("")),
+        optional_configs.add_options()("logic_expr",
+                                       po::value<std::string>(&logic_expr)->default_value(std::string("")),
                                        program_options_utils::FILTER_LABEL_DESCRIPTION);
         optional_configs.add_options()("query_filters_file",
                                        po::value<std::string>(&query_filters_file)->default_value(std::string("")),
@@ -398,16 +398,16 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (filter_label != "" && query_filters_file != "")
+    if (logic_expr != "" && query_filters_file != "")
     {
-        std::cerr << "Only one of filter_label and query_filters_file should be provided" << std::endl;
+        std::cerr << "Only one of logic_expr and query_filters_file should be provided" << std::endl;
         return -1;
     }
 
     std::vector<std::string> query_filters;
-    if (filter_label != "")
+    if (logic_expr != "")
     {
-        query_filters.push_back(filter_label);
+        query_filters.push_back(logic_expr);
     }
     else if (query_filters_file != "")
     {
