@@ -21,6 +21,7 @@
 #include "in_mem_data_store.h"
 #include "in_mem_graph_store.h"
 #include "abstract_index.h"
+#include "filter_parser_util.h"
 
 #include "quantized_distance.h"
 #include "pq_data_store.h"
@@ -115,7 +116,6 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
     DISKANN_DLLEXPORT LabelT get_converted_label(const std::string &raw_label);
 
     DISKANN_DLLEXPORT std::vector<LabelT> parse_label_logic_expression(const std::string &raw_label);
-
     // Set starting point of an index before inserting any points incrementally.
     // The data count should be equal to _num_frozen_pts * _aligned_dim.
     DISKANN_DLLEXPORT void set_start_points(const T *data, size_t data_count);
@@ -144,6 +144,7 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
     // Filter support search
     template <typename IndexType>
     DISKANN_DLLEXPORT std::pair<uint32_t, uint32_t> search_with_filters(const T *query,
+                                                                        const std::string &filter_label_raw,
                                                                         std::vector<LabelT> &filter_labels,
                                                                         const size_t K, const uint32_t L,
                                                                         IndexType *indices, float *distances);
@@ -262,6 +263,10 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
     std::pair<uint32_t, uint32_t> iterate_to_fixed_point(InMemQueryScratch<T> *scratch, const uint32_t Lindex,
                                                          const std::vector<uint32_t> &init_ids, bool use_filter,
                                                          const std::vector<LabelT> &filters, bool search_invocation);
+    std::pair<uint32_t, uint32_t> iterate_to_fixed_point_filtered(InMemQueryScratch<T> *scratch, const uint32_t Lindex,
+                                                                  const std::vector<uint32_t> &init_ids,
+                                                                  SyntaxTree<LabelT> *filter_tree,
+                                                                  bool search_invocation);
 
     void search_for_point_and_prune(int location, uint32_t Lindex, std::vector<uint32_t> &pruned_list,
                                     InMemQueryScratch<T> *scratch, bool use_filter = false,
@@ -379,6 +384,7 @@ template <typename T, typename TagT = uint32_t, typename LabelT = uint32_t> clas
     // Filter Support
 
     bool _filtered_index = false;
+    std::unordered_map<std::string, SyntaxTree<LabelT> *> _filter_trees;
     // Location to label is only updated during insert_point(), all other reads are protected by
     // default as a location can only be released at end of consolidate deletes
     std::vector<std::vector<LabelT>> _location_to_labels;
