@@ -2228,7 +2228,7 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::_search_with_filters(const
 {
     if (this->_filter_trees.find(raw_logic_expr) == this->_filter_trees.end())
     {
-        this->_filter_trees[raw_logic_expr] = new SyntaxTree<LabelT>(raw_logic_expr);
+        this->_filter_trees[raw_logic_expr] = new SyntaxTree<LabelT>(this->_label_map,raw_logic_expr);
     }
     auto converted_label = parse_label_logic_expression(raw_logic_expr);
     if (typeid(uint64_t *) == indices.type())
@@ -2297,8 +2297,8 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::search_with_filters(const 
         tl.unlock();
 
     _data_store->preprocess_query(query, scratch);
-    // auto retval = iterate_to_fixed_point(scratch, L, init_ids, true, filter_labels, true);
-    auto retval = iterate_to_fixed_point_filtered(scratch, L, init_ids, this->_filter_trees.at(raw_logic_expr), true);
+    auto retval = iterate_to_fixed_point(scratch, L, init_ids, true, filter_labels, true);
+    // auto retval = iterate_to_fixed_point_filtered(scratch, L, init_ids, this->_filter_trees.at(raw_logic_expr), true);
 
     auto best_L_nodes = scratch->best_l_nodes();
 

@@ -213,15 +213,14 @@ template <typename T> class SyntaxTree
         return rpn_expr;
     }
 
-    Node<T> *rpn2tree(const std::vector<std::string> &&rpn)
+    Node<T> *rpn2tree(const std::unordered_map<std::string, T>& _label_map, const std::vector<std::string> &&rpn)
     {
         std::stack<Node<T> *> res_nodes{};
         for (auto &op : rpn)
         {
             if (!is_operator(op))
             {
-                auto val = std::stoll(op);
-                auto leaf_node = new LabelNode<T>((T)val);
+                auto leaf_node = new LabelNode<T>(_label_map.at(op));
                 res_nodes.push(leaf_node);
             }
             else if (op == "|")
@@ -257,11 +256,11 @@ template <typename T> class SyntaxTree
     Node<T> *root;
 
   public:
-    explicit SyntaxTree<T>(const std::string &str_logic_expr)
+    explicit SyntaxTree<T>(const std::unordered_map<std::string, T>& _label_map,const std::string &str_logic_expr)
     {
         auto tokens = parse_logic_expression(str_logic_expr);
         auto rpn = convert2rpn(std::move(tokens));
-        root = rpn2tree(std::move(rpn));
+        root = rpn2tree( _label_map,std::move(rpn));
     }
     ~SyntaxTree<T>()
     {
