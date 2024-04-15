@@ -981,8 +981,10 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
     SyntaxTree<LabelT> *filter_tree, bool search_invocation)
 {
     std::vector<Neighbor> &expanded_nodes = scratch->pool();
-    NeighborPriorityQueue &best_L_nodes = scratch->best_l_nodes();
-    best_L_nodes.reserve(Lsize);
+    NeighborPriorityQueue &proc_best_L_nodes = scratch->best_l_nodes();
+    NeighborPriorityQueue filter_best_L_nodes;
+    proc_best_L_nodes.reserve(Lsize);
+    filter_best_L_nodes.reserve(Lsize);
     tsl::robin_set<uint32_t> &inserted_into_pool_rs = scratch->inserted_into_pool_rs();
     boost::dynamic_bitset<> &inserted_into_pool_bs = scratch->inserted_into_pool_bs();
     std::vector<uint32_t> &id_scratch = scratch->id_scratch();
@@ -1036,9 +1038,6 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
                                         __LINE__);
         }
 
-        if (not filter_tree->check(this->_use_universal_label, &_location_to_labels[id]))
-            continue;
-
         if (is_not_visited(id))
         {
             if (fast_iterate)
@@ -1057,16 +1056,20 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
             distance = distances[0];
 
             Neighbor nn = Neighbor(id, distance);
-            best_L_nodes.insert(nn);
+            proc_best_L_nodes.insert(nn);
+            if (filter_tree->check(this->_use_universal_label, &_location_to_labels[id]))
+            {
+                filter_best_L_nodes.insert(nn);
+            }
         }
     }
 
     uint32_t hops = 0;
     uint32_t cmps = 0;
 
-    while (best_L_nodes.has_unexpanded_node())
+    while (proc_best_L_nodes.has_unexpanded_node())
     {
-        auto nbr = best_L_nodes.closest_unexpanded();
+        auto nbr = proc_best_L_nodes.closest_unexpanded();
         auto n = nbr.id;
 
         // Add node to expanded nodes to create pool for prune later
@@ -1091,10 +1094,6 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
             {
                 assert(id < _max_points + _num_frozen_pts);
 
-                // NOTE: NEED TO CHECK IF THIS CORRECT WITH NEW LOCKS.
-                if (not filter_tree->check(this->_use_universal_label, &_location_to_labels[id]))
-                    continue;
-
                 if (is_not_visited(id))
                 {
                     id_scratch.push_back(id);
@@ -1109,10 +1108,6 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
             for (auto id : nbrs)
             {
                 assert(id < _max_points + _num_frozen_pts);
-
-                // NOTE: NEED TO CHECK IF THIS CORRECT WITH NEW LOCKS.
-                if (not filter_tree->check(this->_use_universal_label, &_location_to_labels[id]))
-                    continue;
 
                 if (is_not_visited(id))
                 {
@@ -1141,9 +1136,15 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::iterate_to_fixed_point_fil
         // Insert <id, dist> pairs into the pool of candidates
         for (size_t m = 0; m < id_scratch.size(); ++m)
         {
-            best_L_nodes.insert(Neighbor(id_scratch[m], dist_scratch[m]));
+            auto nn = Neighbor(id_scratch[m], dist_scratch[m]);
+            proc_best_L_nodes.insert(nn);
+            if (filter_tree->check(this->_use_universal_label, &_location_to_labels[id_scratch[m]]))
+            {
+                filter_best_L_nodes.insert(nn);
+            }
         }
     }
+    proc_best_L_nodes = filter_best_L_nodes;
     return std::make_pair(hops, cmps);
 }
 
@@ -2280,20 +2281,20 @@ std::pair<uint32_t, uint32_t> Index<T, TagT, LabelT>::search_with_filters(const 
     std::shared_lock<std::shared_timed_mutex> tl(_tag_lock, std::defer_lock);
     if (_dynamic_index)
         tl.lock();
-    // FIXME: correct code of filter_label to multiple filters
-    for (auto filter_label : filter_labels)
-    {
-        if (_label_to_start_id.find(filter_label) != _label_to_start_id.end())
-        {
-            init_ids.emplace_back(_label_to_start_id[filter_label]);
-        }
-        else
-        {
-            diskann::cout << "No filtered medoid found exitting "
-                          << std::endl; // RKNOTE: If universal label found start there
-            throw diskann::ANNException("No filtered medoid found. exitting ", -1);
-        }
-    }
+    // // FIXME: correct code of filter_label to multiple filters
+    // for (auto filter_label : filter_labels)
+    // {
+    //     if (_label_to_start_id.find(filter_label) != _label_to_start_id.end())
+    //     {
+    //         init_ids.emplace_back(_label_to_start_id[filter_label]);
+    //     }
+    //     else
+    //     {
+    //         diskann::cout << "No filtered medoid found exitting "
+    //                       << std::endl; // RKNOTE: If universal label found start there
+    //         throw diskann::ANNException("No filtered medoid found. exitting ", -1);
+    //     }
+    // }
     if (_dynamic_index)
         tl.unlock();
 
