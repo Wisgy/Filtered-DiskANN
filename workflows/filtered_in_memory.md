@@ -80,7 +80,7 @@ build/apps/utils/fvecs_to_bin float siftsmall/siftsmall_query.fvecs siftsmall/si
 
 We now need to make label file for our vectors. For convenience, we've included a synthetic label generator through which we can generate label file as follow
 ```bash
-  build/apps/utils/generate_synthetic_labels  --num_labels 50 --num_points 10000  --output_file ./rand_labels_50_10K.txt --distribution_type zipf
+  build/apps/utils/generate_synthetic_labels  --num_labels 10 --num_points 10000  --output_file ./rand_labels_10_10K.txt --distribution_type random
 ```
 Note : `distribution_type` can be `rand` or `zipf`
 
@@ -88,7 +88,7 @@ This will genearate label file with 10000 data points with 50 distinct labels, r
 
 Label count for each unique label in the generated label file can be printed with help of following command
 ```bash
-  build/apps/utils/stats_label_data --labels_file ./rand_labels_50_10K.txt --universal_label 0
+  build/apps/utils/stats_label_data --labels_file ./rand_labels_10_10K.txt --universal_label 0
 ```
 	
 Note that neither approach is designed for use with random synthetic labels, which will lead to unpredictable accuracy at search time.
@@ -100,4 +100,10 @@ build/apps/build_memory_index  --data_type float --dist_fn l2 --data_path siftsm
 build/apps/build_stitched_index --data_type float --data_path siftsmall/siftsmall_base.bin --index_path_prefix siftsmall/siftsmall_R20_L40_SR32_stitched_index -R 20 -L 40 --stitched_R 32 --alpha 1.2 --label_file ./rand_labels_50_10K.txt --universal_label 0
 build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix siftsmall/siftsmall_R32_L50_filtered_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/filtered_search_results
 build/apps/search_memory_index  --data_type float --dist_fn l2 --index_path_prefix siftsmall/siftsmall_R20_L40_SR32_stitched_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --filter_label 35 -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/stitched_search_results
+```
+Build and search the index and measure the recall of filter tree using ground truth computed using bruteforce. We search for results with the filter "3 | 4 & 5".
+```bash
+build/apps/utils/compute_groundtruth_for_multi_filters --data_type float --dist_fn l2 --base_file siftsmall/siftsmall_base.bin --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --K 100 --label_file ./rand_labels_10_10K.txt --logic_expr "3 | 4 & 5" --universal_label 0
+build/apps/build_memory_index  --data_type float --dist_fn l2 --data_path siftsmall/siftsmall_base.bin --index_path_prefix siftsmall/siftsmall_R32_L50_filtered_index -R 32 --FilteredLbuild 50 --alpha 1.2 --label_file ./rand_labels10_10K.txt --universal_label 0
+build/apps/search_memory_index_logic  --data_type float --dist_fn l2 --index_path_prefix siftsmall/siftsmall_R32_L50_filtered_index --query_file siftsmall/siftsmall_query.bin --gt_file siftsmall/siftsmall_gt_35.bin --logic_expr "3 | 4 & 5" -K 10 -L 10 20 30 40 50 100 --result_path siftsmall/filtered_search_results
 ```
