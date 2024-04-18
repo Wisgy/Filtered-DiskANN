@@ -28,37 +28,8 @@
 #endif
 
 #include "filter_utils.h"
+#include "filter_parser_util.h"
 #include "utils.h"
-
-namespace SD_utils
-{
-std::set<std::string> parse_label_logic_expression(const std::string &logic_expr)
-{
-    std::stringstream stream_logic_expr(logic_expr);
-    std::string logic_oper{};
-    std::set<std::string> ret{};
-    while (not stream_logic_expr.eof())
-    {
-        std::string raw_label{};
-        stream_logic_expr >> raw_label;
-        stream_logic_expr >> logic_oper;
-        ret.insert(raw_label);
-    }
-    return ret;
-}
-
-bool check_logic(const std::vector<std::string> &labels, const std::set<std::string> &filter_labels)
-{
-    for (auto &filter_label : filter_labels)
-    {
-        if (std::find(labels.begin(), labels.end(), filter_label)!=labels.end())
-        {
-            return true;
-        }
-    }
-    return false;
-}
-} // namespace SD_utils
 
 // WORKS FOR UPTO 2 BILLION POINTS (as we use INT INSTEAD OF UNSIGNED)
 
@@ -334,7 +305,7 @@ inline std::vector<size_t> load_filtered_bin_as_float(const char *filename, floa
                                                       int part_num, const char *label_file,
                                                       const std::string &logic_expr, const std::string &universal_label,
                                                       size_t &npoints_filt,
-                                                      std::vector<std::vector<std::string>> &pts_to_labels)
+                                                      std::vector<std::vector<uint64_t>> &pts_to_labels)
 {
     std::ifstream reader(filename, std::ios::binary);
     if (reader.fail())
@@ -366,12 +337,12 @@ inline std::vector<size_t> load_filtered_bin_as_float(const char *filename, floa
 
     data = aligned_malloc<float>(nptsuint64_t * ndimsuint64_t, ALIGNMENT);
 
-    auto filter_labels = SD_utils::parse_label_logic_expression(logic_expr);
+    std::unordered_map<std::string, uint64_t> tmp_map{};
+    auto filter_tree = SyntaxTree<uint64_t>(std::stoll(universal_label), tmp_map, logic_expr);
 
     for (int64_t i = 0; i < (int64_t)nptsuint64_t; i++)
     {
-        if (SD_utils::check_logic(pts_to_labels[start_id + i], filter_labels) || std::find(pts_to_labels[start_id + i].begin(), pts_to_labels[start_id + i].end(),
-                                                 universal_label) != pts_to_labels[start_id + i].end())
+        if (filter_tree.check(true, &pts_to_labels[start_id + i]))
         {
             rev_map.push_back(start_id + i);
             for (int64_t j = 0; j < (int64_t)ndimsuint64_t; j++)
@@ -423,8 +394,22 @@ inline void save_groundtruth_as_one_file(const std::string filename, int32_t *da
     std::cout << "Finished writing truthset" << std::endl;
 }
 
+template <typename T> inline T sto(std::string &str)
+{
+    throw std::logic_error{"undefined type convert"};
+}
+template <> inline uint64_t sto<uint64_t>(std::string &str)
+{
+    return std::stoull(str);
+}
+template <> inline std::string sto<std::string>(std::string &str)
+{
+    return str;
+}
+
+template <typename T>
 inline void parse_label_file_into_vec(size_t &line_cnt, const std::string &map_file,
-                                      std::vector<std::vector<std::string>> &pts_to_labels)
+                                      std::vector<std::vector<T>> &pts_to_labels)
 {
     std::ifstream infile(map_file);
     std::string line, token;
@@ -434,7 +419,7 @@ inline void parse_label_file_into_vec(size_t &line_cnt, const std::string &map_f
     while (std::getline(infile, line))
     {
         std::istringstream iss(line);
-        std::vector<std::string> lbls(0);
+        std::vector<T> lbls(0);
 
         getline(iss, token, '\t');
         std::istringstream new_iss(token);
@@ -442,7 +427,7 @@ inline void parse_label_file_into_vec(size_t &line_cnt, const std::string &map_f
         {
             token.erase(std::remove(token.begin(), token.end(), '\n'), token.end());
             token.erase(std::remove(token.begin(), token.end(), '\r'), token.end());
-            lbls.push_back(token);
+            lbls.push_back(sto<T>(token));
             labels.insert(token);
         }
         std::sort(lbls.begin(), lbls.end());
@@ -506,9 +491,9 @@ std::vector<std::vector<std::pair<uint32_t, float>>> processFilteredParts(
     std::vector<std::vector<std::pair<uint32_t, float>>> res(nqueries);
     int num_parts = get_num_parts<T>(base_file.c_str());
 
-    std::vector<std::vector<std::string>> pts_to_labels;
+    std::vector<std::vector<uint64_t>> pts_to_labels;
     if (logic_expr != "")
-        parse_label_file_into_vec(npoints, label_file, pts_to_labels);
+        parse_label_file_into_vec<uint64_t>(npoints, label_file, pts_to_labels);
 
     for (int p = 0; p < num_parts; p++)
     {
@@ -804,7 +789,7 @@ int main(int argc, char **argv)
 
         size_t npoints;
         std::vector<std::vector<std::string>> point_to_labels;
-        parse_label_file_into_vec(npoints, label_file, point_to_labels);
+        parse_label_file_into_vec<std::string>(npoints, label_file, point_to_labels);
         std::vector<label_set> point_ids_to_labels(point_to_labels.size());
         std::vector<label_set> query_ids_to_labels(filter_labels.size());
 
